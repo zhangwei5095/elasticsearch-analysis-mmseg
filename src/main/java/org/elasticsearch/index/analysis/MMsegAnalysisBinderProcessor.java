@@ -25,6 +25,7 @@ package org.elasticsearch.index.analysis;
  * Date: 8/2/11
  * Time: 5:28 PM
  */
+@Deprecated
 public class MMsegAnalysisBinderProcessor extends AnalysisModule.AnalysisBinderProcessor  {
 
     @Override public void processAnalyzers(AnalyzersBindings analyzersBindings) {
@@ -38,8 +39,11 @@ public class MMsegAnalysisBinderProcessor extends AnalysisModule.AnalysisBinderP
         super.processTokenizers(tokenizersBindings);
     }
 
-    @Override public void processTokenFilters(TokenFiltersBindings tokenFiltersBindings) {
 
+    @Override
+    public void processTokenFilters(TokenFiltersBindings tokenFiltersBindings) {
+        tokenFiltersBindings.processTokenFilter("cut_letter_digit", CutLetterDigitTokenFilter.class);
+        super.processTokenFilters(tokenFiltersBindings);
     }
 
 }

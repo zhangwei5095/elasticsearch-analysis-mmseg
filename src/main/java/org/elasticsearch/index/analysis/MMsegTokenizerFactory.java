@@ -8,7 +8,7 @@ import org.elasticsearch.common.inject.assistedinject.Assisted;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.index.Index;
-import org.elasticsearch.index.settings.IndexSettings;
+import org.elasticsearch.index.settings.IndexSettingsService;
 
 import java.io.File;
 import java.io.Reader;
@@ -19,29 +19,29 @@ import java.io.Reader;
  * Date: 12-6-6
  * Time: 下午3:59
  */
+@Deprecated
 public class MMsegTokenizerFactory extends AbstractTokenizerFactory {
 
     Dictionary dic;
-    private String seg_type;
+    private String segType;
 
     @Inject
-    public MMsegTokenizerFactory(Index index, @IndexSettings Settings indexSettings,Environment env, @Assisted String name, @Assisted Settings settings) {
-        super(index, indexSettings, name, settings);
-        String path=new File(env.configFile(),"mmseg").getPath();
-        dic = Dictionary.getInstance(path);
-        seg_type = settings.get("seg_type", "max_word");
+    public MMsegTokenizerFactory(Index index, IndexSettingsService indexSettings,Environment env, @Assisted String name, @Assisted Settings settings) {
+        super(index, indexSettings.getSettings(), name, settings);
+        dic = Dictionary.getInstance();
+        segType = settings.get("seg_type", "max_word");
     }
 
     @Override
-    public Tokenizer create(Reader reader) {
-        Seg seg_method=null;
-        if(seg_type.equals("max_word")){
-            seg_method = new MaxWordSeg(dic);
-        }else if(seg_type.equals("complex")){
-            seg_method = new ComplexSeg(dic);
-        }else if(seg_type.equals("simple")){
-            seg_method =new SimpleSeg(dic);
+    public Tokenizer create() {
+        Seg segMethod=null;
+        if(segType.equals("max_word")){
+            segMethod = new MaxWordSeg(dic);
+        }else if(segType.equals("complex")){
+            segMethod = new ComplexSeg(dic);
+        }else if(segType.equals("simple")){
+            segMethod =new SimpleSeg(dic);
         }
-        return  new MMSegTokenizer(seg_method,reader);
+        return  new MMSegTokenizer(segMethod);
     }
 }

@@ -1,12 +1,16 @@
 package com.chenlb.mmseg4j;
 
+import org.elasticsearch.common.io.PathUtils;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.plugin.analysis.mmseg.AnalysisMMsegPlugin;
 
 import java.io.*;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,6 +38,13 @@ public class Dictionary {
 	private static File defalutPath = null;
 	private static final ConcurrentHashMap<File, Dictionary> dics = new ConcurrentHashMap<File, Dictionary>();
 
+    /**
+     * 词典的目录
+     */
+    private Dictionary(File path) {
+        init(path);
+    }
+
 	protected void finalize() throws Throwable {
 		/*
 		 * 使 class reload 的时也可以释放词库
@@ -52,8 +63,8 @@ public class Dictionary {
 	 * @see #getDefalutPath()
 	 */
 	public static Dictionary getInstance() {
-		File path = getDefalutPath();
-		return getInstance(path);
+		Path path = PathUtils.get(getDictRoot(), "mmseg");
+		return getInstance(path.toFile());
 	}
 
 	/**
@@ -67,7 +78,6 @@ public class Dictionary {
 	 * @param path 词典的目录
 	 */
 	public static Dictionary getInstance(File path) {
-//		log.info("try to load dir="+path);
 		File normalizeDir = normalizeFile(path);
 		Dictionary dic = dics.get(normalizeDir);
 		if(dic == null) {
@@ -116,13 +126,6 @@ public class Dictionary {
 		return dics.remove(normalizeDir);
 	}
 
-	/**
-	 * 词典的目录
-	 */
-	private Dictionary(File path) {
-		init(path);
-	}
-
 	private void init(File path) {
 		dicPath = path;
 		wordsLastTime = new HashMap<File, Long>();
@@ -150,7 +153,7 @@ public class Dictionary {
 	}
 
 	private Map<Character, CharNode> loadDic(File wordsPath) throws IOException {
-		InputStream charsIn = null;
+		InputStream charsIn;
 		File charsFile = new File(wordsPath, "chars.dic");
 		if(charsFile.exists()) {
 			charsIn = new FileInputStream(charsFile);
@@ -160,7 +163,7 @@ public class Dictionary {
 			charsFile = new File(this.getClass().getResource("/data/chars.dic").getFile());	//only for log
 		}
 		final Map<Character, CharNode> dic = new HashMap<Character, CharNode>();
-		int lineNum = 0;
+		int lineNum;
 		long s = now();
 		long ss = s;
 		lineNum = load(charsIn, new FileLoading() {	//单个字的
@@ -184,7 +187,7 @@ public class Dictionary {
 				}
 			}
 		});
-		log.info("chars loaded time="+(now()-s)+"ms, line="+lineNum+", on file="+charsFile.getName());
+		log.info("[Dict Loading] chars loaded time="+(now()-s)+"ms, line="+lineNum+", on file="+charsFile.getName());
 
 		//try load words.dic in jar
 		InputStream wordsDicIn = this.getClass().getResourceAsStream("/data/words.dic");
@@ -202,7 +205,7 @@ public class Dictionary {
 			}
 		}
 
-		log.info("load all dic use time="+(now()-ss)+"ms");
+		log.debug("[Dict Loading] load all dic use time=" + (now()-ss)+"ms");
 		return dic;
 	}
 
@@ -215,11 +218,11 @@ public class Dictionary {
 	private void loadWord(InputStream is, Map<Character, CharNode> dic, File wordsFile) throws IOException {
 		long s = now();
 		int lineNum = load(is, new WordsFileLoading(dic)); //正常的词库
-		log.info("words loaded time="+(now()-s)+"ms, line="+lineNum+", on file="+wordsFile.getName());
+		log.info("[Dict Loading] words loaded time="+(now()-s)+"ms, line="+lineNum+", on file="+wordsFile.getName());
 	}
 
 	private Map<Character, Object> loadUnit(File path) throws IOException {
-		InputStream fin = null;
+		InputStream fin;
 		File unitFile = new File(path, "units.dic");
 		if(unitFile.exists()) {
 			fin = new FileInputStream(unitFile);
@@ -229,7 +232,7 @@ public class Dictionary {
 			unitFile = new File(Dictionary.class.getResource("/data/units.dic").getFile());
 		}
 
-		final Map<Character, Object> unit = new HashMap<Character, Object>();
+		final Map<Character, Object> localUnit = new HashMap<Character, Object>();
 
 		long s = now();
 		int lineNum = load(fin, new FileLoading() {
@@ -238,12 +241,12 @@ public class Dictionary {
 				if(line.length() != 1) {
 					return;
 				}
-				unit.put(line.charAt(0), Dictionary.class);
+				localUnit.put(line.charAt(0), Dictionary.class);
 			}
 		});
-		log.info("unit loaded time="+(now()-s)+"ms, line="+lineNum+", on file="+unitFile.getName());
+		log.info("[Dict Loading] unit loaded time="+(now()-s)+"ms, line="+lineNum+", on file="+unitFile.getName());
 
-		return unit;
+		return localUnit;
 	}
 
 	/**
@@ -281,7 +284,7 @@ public class Dictionary {
 	public static int load(InputStream fin, FileLoading loading) throws IOException {
 		BufferedReader br = new BufferedReader(
 				new InputStreamReader(new BufferedInputStream(fin), "UTF-8"));
-		String line = null;
+		String line;
 		int n = 0;
 		while((line = br.readLine()) != null) {
 			if(line == null || line.startsWith("#")) {
@@ -417,7 +420,7 @@ public class Dictionary {
 		return 0;
 	}
 
-	public ArrayList<Integer> maxMatch(CharNode node, ArrayList<Integer> tailLens, char[] sen, int offset) {
+	public List<Integer> maxMatch(CharNode node, List<Integer> tailLens, char[] sen, int offset) {
 		tailLens.clear();
 		tailLens.add(0);
 		if(node != null) {
@@ -474,5 +477,11 @@ public class Dictionary {
 	/** 最后加载词库的时间 */
 	public long getLastLoadTime() {
 		return lastLoadTime;
+	}
+
+	public static String getDictRoot() {
+		return PathUtils.get(
+				new File(AnalysisMMsegPlugin.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParent(), "config")
+				.toAbsolutePath().toString();
 	}
 }

@@ -1,84 +1,82 @@
-Mmseg Analysis for ElasticSearch
+Mmseg Analysis for Elasticsearch
 ==================================
 
 The Mmseg Analysis plugin integrates Lucene mmseg4j-analyzer:http://code.google.com/p/mmseg4j/ into elasticsearch, support customized dictionary.
 
-The plugin includes a `mmseg` analyzer and a `mmseg` tokenizer.
+The plugin ships with analyzers: `mmseg_maxword`  ,`mmseg_complex` ,`mmseg_simple` and tokenizers: `mmseg_maxword`  ,`mmseg_complex` ,`mmseg_simple`  and token_filter: `cut_letter_digit` .
 
-Version
--—————
-master | 1.0.0 → master
-1.2.2 | 1.0.0
+Versions
+--------
+
+Mmseg ver  | ES version
+-----------|-----------
+master | 2.3.x -> master
+1.9.4 | 2.3.4
+1.9.3 | 2.3.3
+1.8.1 | 2.2.1
+1.7.0 | 2.1.1
+1.5.0 | 2.0.0
+1.4.0 | 1.7.0
+1.3.0 | 1.6.0
 1.2.1 | 0.90.2
-1.2.0 | 0.90.0
 1.1.2 | 0.20.1
-1.1.1 | 0.19.x
+
+
+Package
+-------------
+
+```
+mvn package
+```
 
 Install
 -------------
 
-you can download this plugin from RTF project(https://github.com/medcl/elasticsearch-rtf)
-https://github.com/medcl/elasticsearch-rtf/tree/master/plugins/analysis-mmseg
+Unzip and place into elasticsearch's plugins folder,
+you can checkout example from https://github.com/medcl/elasticsearch-rtf
 
-download the dict files,unzip these dict file to your elasticsearch's config folder,such as: your-es-root/config/mmseg
-https://github.com/medcl/elasticsearch-rtf/tree/master/config/mmseg
-
-you need a service restart after that!
-
-Analysis Configuration (elasticsearch.yml)
+Custom Analysis Configuration Example (elasticsearch.yml)
 -------------
 
-<pre>
 
+```
 index:
   analysis:
     analyzer:
-      mmseg:
-          alias: [news_analyzer, mmseg_analyzer]
-          type: org.elasticsearch.index.analysis.MMsegAnalyzerProvider
-index.analysis.analyzer.default.type : "mmseg"
-</pre>
-
-
-additional parameters that can be used to customize the mmseg tokenizer
-
-<pre>
-index:
-  analysis:
-    tokenizer:
       mmseg_maxword:
-          type: mmseg
-          seg_type: "max_word"
-      mmseg_complex:
-          type: mmseg
-          seg_type: "complex"
-      mmseg_simple:
-          type: mmseg
-          seg_type: "simple"
-</pre>
+        type: custom
+        filter:
+        - lowercase
+        tokenizer: mmseg_maxword
+      mmseg_maxword_with_cut_letter_digi:
+        type: custom
+        filter:
+        - lowercase
+        - cut_letter_digit
+        tokenizer: mmseg_maxword    
+```
 
 Mapping Configuration
 -------------
 
 Here is a quick example:
-1.create a index
 
-<pre>
+1.Create a index
 
+```
 curl -XPUT http://localhost:9200/index
 
-</pre>
+```
 
-2.create a mapping
+2.Create a mapping
 
-<pre>
-
+```
 curl -XPOST http://localhost:9200/index/fulltext/_mapping -d'
 {
     "fulltext": {
              "_all": {
-            "indexAnalyzer": "mmseg",
-            "searchAnalyzer": "mmseg",
+            "analyzer": "mmseg_maxword",
+            "search_analyzer": "mmseg_maxword",
             "term_vector": "no",
             "store": "false"
         },
@@ -87,20 +85,19 @@ curl -XPOST http://localhost:9200/index/fulltext/_mapping -d'
                 "type": "string",
                 "store": "no",
                 "term_vector": "with_positions_offsets",
-                "indexAnalyzer": "mmseg",
-                "searchAnalyzer": "mmseg",
+                "analyzer": "mmseg_maxword",
+                "search_analyzer": "mmseg_maxword",
                 "include_in_all": "true",
                 "boost": 8
             }
         }
     }
 }'
-</pre>
+```
 
-3.indexing some docs
+3.Indexing some docs
 
-<pre>
-
+```
 curl -XPOST http://localhost:9200/index/fulltext/1 -d'
 {content:"美国留给伊拉克的是个烂摊子吗"}
 '
@@ -116,12 +113,11 @@ curl -XPOST http://localhost:9200/index/fulltext/3 -d'
 curl -XPOST http://localhost:9200/index/fulltext/4 -d'
 {content:"中国驻洛杉矶领事馆遭亚裔男子枪击 嫌犯已自首"}
 '
-</pre>
+```
 
-4.query with highlighting
+4.Query with highlighting
 
-<pre>
-
+```
 curl -XPOST http://localhost:9200/index/fulltext/_search  -d'
 {
     "query" : { "term" : { "content" : "中国" }},
@@ -134,11 +130,11 @@ curl -XPOST http://localhost:9200/index/fulltext/_search  -d'
     }
 }
 '
-</pre>
+```
 
-here is the query result
+Here is the query result
 
-<pre>
+```
 
 {
     "took": 14,
@@ -184,7 +180,7 @@ here is the query result
     }
 }
 
-</pre>
+```
 
 
-have fun.
+Have fun.
